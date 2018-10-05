@@ -1,6 +1,6 @@
 rm(list=ls())
 setwd("/restricted/projectnb/combat/work/yuqingz/multistudy_batcheffect/AEGIS_simbatch/")
-#setwd("C:/Users/zhang/Dropbox/Work/MultiStudy_BatchEffect/AEGIS_simbatch/")
+#setwd("~/Dropbox/Work/MultiStudy_BatchEffect/AEGIS_simbatch/")
 sapply(c("sva", "MCMCpack", "BatchQC", "ROCR", "ggplot2", "limma", "nnls"), require, character.only=TRUE)
 source("helper.R")
 load("AEGIS_data.RData")
@@ -8,7 +8,7 @@ load("AEGIS_data.RData")
 
 ####  Parameters 
 command_args <- commandArgs(trailingOnly=TRUE)  
-# command_args <- c("nnet", "TRUE")
+# command_args <- c("nnet", "TRUE", "TRUE")
 # prediction
 learner_type <- command_args[1] # "lasso" 
 learner_fit <- getPredFunctions(learner_type)
@@ -26,7 +26,8 @@ N_reduce_size <- 70
 
 # pipeline
 iterations <- 5
-#plot_sim_ind <- seq(10,100,20)
+plot_sim_ind <- NULL #seq(10,100,20)
+use_ref_combat <- as.logical(command_args[3])  # whether to use ref combat to adjust test set against training set
 set.seed(1)
 
 
@@ -96,12 +97,12 @@ while(ID < iterations){
   ####  Training
   ## Prediction from original training to test, without batch effect
   pred_base_res <- try(trainPipe(train_set=train_expr_norm, train_label=y_train, 
-                                 test_set=test_expr_norm, lfit=learner_fit))
+                                 test_set=test_expr_norm, lfit=learner_fit, use_ref_combat=use_ref_combat))
   if(class(pred_base_res)=="try-error"){ID <- ID - 1; next}
   
   ## Prediction from training WITH batch effect to test
   pred_batch_res <- try(trainPipe(train_set=train_expr_batch_whole_norm, train_label=y_train,
-                                  test_set=test_expr_norm, lfit=learner_fit))
+                                  test_set=test_expr_norm, lfit=learner_fit, use_ref_combat=use_ref_combat))
   if(class(pred_batch_res)=="try-error"){ID <- ID - 1; next}
   
   ##  Prediction from training after batch adjustment (Merged)  
@@ -109,13 +110,13 @@ while(ID < iterations){
   if(class(train_expr_combat)=="try-error"){ID <- ID - 1; next}
   train_expr_combat_norm <- normalizeData(train_expr_combat)
   pred_combat_res <- try(trainPipe(train_set=train_expr_combat_norm, train_label=y_train, 
-                                   test_set=test_expr_norm, lfit=learner_fit))
+                                   test_set=test_expr_norm, lfit=learner_fit, use_ref_combat=use_ref_combat))
   if(class(pred_combat_res)=="try-error"){ID <- ID - 1; next}
   
   ## Obtain predictions from learner trained within each batch 
   pred_sgbatch_res <- try(lapply(1:N_batch, function(batch_id){
     trainPipe(train_set=train_expr_batch_norm[, batches_ind[[batch_id]]], train_label=y_sgbatch_train[[batch_id]], 
-              test_set=test_expr_norm, lfit=learner_fit)
+              test_set=test_expr_norm, lfit=learner_fit, use_ref_combat=use_ref_combat)
   }))
   if(class(pred_sgbatch_res)=="try-error"){ID <- ID - 1; next}
   names(pred_sgbatch_res) <- paste0("Batch", 1:N_batch)
@@ -169,13 +170,16 @@ while(ID < iterations){
   
   
   ####  Output results
-  first_file <- !file.exists(sprintf('batchCSL_AEGIS_%s_%s_red%s.csv', 
-                                     perf_measure_name, learner_type, ifelse(reduce_size, 'TRUE', 'FALSE')))
-  write.table(perf_df, sprintf('batchCSL_AEGIS_%s_%s_red%s.csv', 
-                               perf_measure_name, learner_type, ifelse(reduce_size, 'TRUE', 'FALSE')), 
+  first_file <- !file.exists(sprintf('batchCSL_AEGIS_%s_%s_reduce%s_useref%s.csv', 
+                                     perf_measure_name, learner_type, 
+                                     ifelse(reduce_size, 'T', 'F'), ifelse(use_ref_combat, 'T', 'F')))
+  write.table(perf_df, sprintf('batchCSL_AEGIS_%s_%s_reduce%s_useref%s.csv', 
+                               perf_measure_name, learner_type, 
+                               ifelse(reduce_size, 'T', 'F'), ifelse(use_ref_combat, 'T', 'F')), 
               append=!first_file, col.names=first_file, row.names=FALSE, sep=",")
   pred_mat_lst[[ID]] <- pred_mat
 }
 
-save(pred_mat_lst, file=sprintf("test_pred_scores_%s_%s_red%s.RData", 
-                                perf_measure_name, learner_type, ifelse(reduce_size, 'TRUE', 'FALSE')))
+save(pred_mat_lst, file=sprintf("testPredScores_%s_%s_Reduce%s_useRef%s.RData", 
+                                perf_measure_name, learner_type, 
+                                ifelse(reduce_size, 'T', 'F'), ifelse(use_ref_combat, 'T', 'F')))

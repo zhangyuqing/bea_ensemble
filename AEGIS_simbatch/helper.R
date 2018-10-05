@@ -76,14 +76,19 @@ normalizeData <- function(dat){
 
 
 #### Train pipeline: ref combat test with train, and fit learner
-trainPipe <- function(train_set, test_set, train_label, lfit=learner_fit){
-  cmb_dat <- cbind(test_set, train_set)
-  tmp_batch <- c(rep(2,ncol(test_set)), rep(1,ncol(train_set)))
-  test_refadj <- ComBat(cmb_dat, batch=tmp_batch, mod=NULL, ref.batch=1)[, 1:ncol(test_set)]
-  if(!identical(dim(test_refadj), dim(test_set))){stop("Error in trainPipe!")}
+trainPipe <- function(train_set, test_set, train_label, lfit=learner_fit, use_ref_combat=TRUE){
+  if(use_ref_combat){  # use ref combat to adjust test set to match train set
+    cmb_dat <- cbind(test_set, train_set)
+    tmp_batch <- c(rep(2,ncol(test_set)), rep(1,ncol(train_set)))
+    test_refadj <- ComBat(cmb_dat, batch=tmp_batch, mod=NULL, ref.batch=1)[, 1:ncol(test_set)]
+    if(!identical(dim(test_refadj), dim(test_set))){stop("Error in trainPipe!")}
+  }else{
+    test_refadj <- test_set
+  }
   pred_res <- lfit(trn_set=train_set, y_trn=train_label, tst_set=test_refadj)
   return(pred_res)
 }
+
 
 
 ####  Get functions corresponding to learner type
@@ -201,29 +206,6 @@ predSVM <- function(
   res <- list(pred_trn_prob=pred_train_svm, pred_tst_prob=pred_test_svm)
   return(res)
 }
-
-# kNN 
-# predKNN <- function(
-#   trn_set,
-#   # gene-by-sample expression matrix for training
-#   tst_set, 
-#   # gene-by-sample expression matrix for test
-#   y_trn
-#   # response of training set, binary & numeric
-# ){
-#   library(caret)
-#   parGrid <- expand.grid(k=seq(from=1,to=50,by=1))
-#   ctrl <- trainControl(method = "cv", number=10)
-#   mod_knn <- train(x=t(trn_set), y=as.factor(y_trn), 
-#                    method="knn",
-#                    trControl=ctrl,
-#                    tuneGrid=parGrid)
-#   pred_train_knn <- predict(mod_knn, t(trn_set), type="prob")[,"1"] 
-#   pred_test_knn <- predict(mod_knn, t(tst_set), type="prob")[,"1"] 
-#   
-#   res <- list(pred_trn=pred_train_knn, pred_tst=pred_test_knn)
-#   return(res)
-# }
 
 # random forest
 predRF <- function(
