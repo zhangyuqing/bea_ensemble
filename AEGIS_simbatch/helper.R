@@ -304,14 +304,14 @@ predMas <- function(
 ####  Ensemble with different weighting methods
 ## CS-Avg
 # train in each batch, predict on all other batches
-CS_zmatrix <- function(study_lst, label_lst, lfit, perf_name){
+CS_zmatrix <- function(study_lst, label_lst, lfit, perf_name, use_ref_combat){
   n_batch <- length(study_lst)
   zmat <- matrix(0, nrow=n_batch, ncol=n_batch)
   for(i in 1:n_batch){
     for(j in 1:n_batch){
       if(i!=j){
         tmp_pred <- trainPipe(train_set=study_lst[[i]], train_label=label_lst[[i]], 
-                              test_set=study_lst[[j]], lfit=lfit)$pred_tst_prob
+                              test_set=study_lst[[j]], lfit=lfit, use_ref_combat=use_ref_combat)$pred_tst_prob
         if(perf_name=="mxe"){tmp_pred <- pmax(pmin(tmp_pred, 1 - 1e-15), 1e-15)} # avoid Inf in computing cross-entropy loss
         rocr_pred <- prediction(tmp_pred, as.numeric(as.character(label_lst[[j]])))
         perf_tmp <- performance(rocr_pred, perf_name)  # mean cross entropy
@@ -333,13 +333,13 @@ CS_weight <- function(cs_zmat){
 
 ## Regression weights
 # for each batch, train on each batch, prediction on it
-Reg_SSL_pred <- function(study_lst, label_lst, lfit){
+Reg_SSL_pred <- function(study_lst, label_lst, lfit, use_ref_combat){
   SSL_pred_lst <- SSL_coef_lst <- list()
   n_batch <- length(study_lst)
   for(k in 1:n_batch){
     tmp <- lapply(1:n_batch, function(batch_id){
       return(trainPipe(train_set=study_lst[[batch_id]], train_label=label_lst[[batch_id]], 
-                       test_set=study_lst[[k]], lfit=lfit)$pred_tst_prob)
+                       test_set=study_lst[[k]], lfit=lfit, use_ref_combat=use_ref_combat)$pred_tst_prob)
     })
     names(tmp) <- paste0("Batch", 1:n_batch)
     SSL_pred_lst[[k]] <- do.call(cbind, tmp)

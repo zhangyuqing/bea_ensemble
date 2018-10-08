@@ -4,11 +4,11 @@ setwd("/restricted/projectnb/combat/work/yuqingz/multistudy_batcheffect/AEGIS_si
 sapply(c("sva", "MCMCpack", "BatchQC", "ROCR", "ggplot2", "limma", "nnls"), require, character.only=TRUE)
 source("helper.R")
 load("AEGIS_data.RData")
-
+# R version 3.4.2
 
 ####  Parameters 
 command_args <- commandArgs(trailingOnly=TRUE)  
-# command_args <- c("nnet", "TRUE", "TRUE")
+# command_args <- c("nnet", "FALSE", "FALSE")
 # prediction
 learner_type <- command_args[1] # "lasso" 
 learner_fit <- getPredFunctions(learner_type)
@@ -25,7 +25,7 @@ reduce_size <- as.logical(command_args[2])  # "FALSE"  # whether to take subsets
 N_reduce_size <- 70
 
 # pipeline
-iterations <- 5
+iterations <- 1000
 plot_sim_ind <- NULL #seq(10,100,20)
 use_ref_combat <- as.logical(command_args[3])  # whether to use ref combat to adjust test set against training set
 set.seed(1)
@@ -134,13 +134,13 @@ while(ID < iterations){
   # CS-Avg: replicability weights
   train_lst <- lapply(batches_ind, function(ind){train_expr_batch_norm[, ind]})
   cs_zmat <- try(CS_zmatrix(study_lst=train_lst, label_lst=y_sgbatch_train, 
-                            lfit=learner_fit, perf_name=perf_measure_name))
+                            lfit=learner_fit, perf_name=perf_measure_name, use_ref_combat=use_ref_combat))
   if(class(cs_zmat)=="try-error"){ID <- ID - 1; next}
   cs_weights_seq <- CS_weight(cs_zmat)
   pred_cs_avg <- pred_mat %*% cs_weights_seq
   
   # Reg-a: use each function to predict on one study, bind predictions and do regression
-  reg_ssl_res <- try(Reg_SSL_pred(study_lst=train_lst, label_lst=y_sgbatch_train, lfit=learner_fit))
+  reg_ssl_res <- try(Reg_SSL_pred(study_lst=train_lst, label_lst=y_sgbatch_train, lfit=learner_fit, use_ref_combat=use_ref_combat))
   if(class(reg_ssl_res)=="try-error"){ID <- ID - 1; next}
   reg_a_beta <- Reg_a_weight(coef_mat=do.call(rbind, reg_ssl_res$coef), n_seq=sapply(batches_ind, length))
   pred_reg_a <- pred_mat %*% reg_a_beta
@@ -180,6 +180,6 @@ while(ID < iterations){
   pred_mat_lst[[ID]] <- pred_mat
 }
 
-save(pred_mat_lst, file=sprintf("testPredScores_%s_%s_Reduce%s_useRef%s.RData", 
+save(pred_mat_lst, file=sprintf("testPredScores_%s_%s_reduce%s_useref%s.RData", 
                                 perf_measure_name, learner_type, 
                                 ifelse(reduce_size, 'T', 'F'), ifelse(use_ref_combat, 'T', 'F')))
