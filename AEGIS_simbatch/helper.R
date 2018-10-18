@@ -1,3 +1,17 @@
+####  Helpers related to inverse gamma distribution
+mv2ab <- function(m, v){
+  a <- 2 + m^2/v
+  b <- m * (a-1)
+  return(list(alpha=a, beta=b))
+}
+
+ab2mv <- function(a, b){
+  m <- b / (a-1)
+  v <- b^2 / ((a-1)^2*(a-2))
+  return(list(mean=m, var=v))
+}
+
+
 ####  Split a dataset into man-made batches
 splitBatch <- function(condition, N_batch){
   # split samples into case / control groups
@@ -67,7 +81,7 @@ simBatch <- function(dat, condition, batches_ind, batch, hyper_pars){
 }
 
 
-####  Gene-wise normalize datasets
+####  Gene-wise normalize datasets (z-score scaling)
 normalizeData <- function(dat){
   dat_norm <- t(apply(dat, 1, scale, center=TRUE, scale=TRUE))
   dimnames(dat_norm) <- dimnames(dat)
@@ -90,7 +104,6 @@ trainPipe <- function(train_set, test_set, train_label, lfit=learner_fit, use_re
 }
 
 
-
 ####  Get functions corresponding to learner type
 getPredFunctions <- function(learner_type){
   if(learner_type=="lasso"){return(predLasso)
@@ -101,7 +114,6 @@ getPredFunctions <- function(learner_type){
   }else if(learner_type=="rf"){return(predRF)
   }else if(learner_type=="nnet"){return(predNnet)
   }else if(learner_type=="plusminus"){return(predMas)
-  #}else if(learner_type=="cart"){return(predCART)
   }else{stop("Method not supported!")}
 }
 
@@ -299,8 +311,6 @@ predMas <- function(
 }
 
 
-
-
 ####  Ensemble with different weighting methods
 ## CS-Avg
 # train in each batch, predict on all other batches
@@ -312,7 +322,8 @@ CS_zmatrix <- function(study_lst, label_lst, lfit, perf_name, use_ref_combat){
       if(i!=j){
         tmp_pred <- trainPipe(train_set=study_lst[[i]], train_label=label_lst[[i]], 
                               test_set=study_lst[[j]], lfit=lfit, use_ref_combat=use_ref_combat)$pred_tst_prob
-        if(perf_name=="mxe"){tmp_pred <- pmax(pmin(tmp_pred, 1 - 1e-15), 1e-15)} # avoid Inf in computing cross-entropy loss
+        if(perf_name=="mxe"){tmp_pred <- pmax(pmin(tmp_pred, 1 - 1e-15), 1e-15)}
+        # avoid Inf in computing cross-entropy loss
         rocr_pred <- prediction(tmp_pred, as.numeric(as.character(label_lst[[j]])))
         perf_tmp <- performance(rocr_pred, perf_name)  # mean cross entropy
         zmat[i,j] <- as.numeric(perf_tmp@y.values)

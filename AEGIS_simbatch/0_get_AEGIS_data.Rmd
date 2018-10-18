@@ -116,6 +116,7 @@ Range of biological signal (fold change of top-100 DE genes):
 ```{r, message=FALSE}
 de_res <- topTable(de_fit, number=100)
 print(round(range(exp(de_res$logFC)), 3))
+print(round(median(exp(de_res$logFC[1:10])), 3))
 ```
 
 Range of gene-wise mean:
