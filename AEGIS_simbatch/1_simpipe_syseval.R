@@ -5,7 +5,7 @@ sapply(c("sva", "MCMCpack", "BatchQC", "ROCR", "ggplot2", "limma", "nnls"),
        require, character.only=TRUE)
 source("helper.R")
 load("AEGIS_data.RData")
-# R version 3.5.0
+# R version 3.4.2
 
 
 ####  Parameters 
