@@ -12,10 +12,10 @@ command_args <- commandArgs(trailingOnly=TRUE)
 # prediction
 learner_type <- command_args[1] # "lasso" 
 learner_fit <- getPredFunctions(learner_type)
-perf_measure_name <- "mxe" #command_args[3]
+perf_measure_name <- "mxe" 
 
 # batch
-N_batch <- 5 #as.numeric(command_args[1])
+N_batch <- as.numeric(command_args[2])  # 5
 hyper_pars <- list(hyper_mu=c(-1, -0.5, 0, 0.5, 1),  #rep(0,5),
                    hyper_sd=sqrt(rep(0.05, 5)),
                    hyper_alpha=c(2.2, 2.8, 7, 22, 82),  #c(3.28, 2.02, 2.845, 2.32, 2.125),

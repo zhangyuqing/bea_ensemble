@@ -28,7 +28,7 @@ sim_short_names = ["nbatch_" + str(ii) + "_" + jj for ii in Nbatch_vec for jj in
 
 for i in range(len(sim_short_names)):
     splt = sim_short_names[i].split("_")
-    os.system("qsub -P combat -o SysEval/logs/" + sim_short_names[i] + ".txt "               + "-e SysEval/logs/" + sim_short_names[i]  + "_err.txt "               + "-N " + sim_short_names[i] +" -cwd -b y -pe omp 8 "               + "/share/pkg/r/3.4.2/install/bin/Rscript 1_simpipe_syseval.R " + splt[2] + " " + splt[1] + " 1.5 2 FALSE 0 " + splt[0])
+    os.system("qsub -P combat -o SysEval/logs/" + sim_short_names[i] + ".txt "               + "-e SysEval/logs/" + sim_short_names[i]  + "_err.txt "               + "-N " + sim_short_names[i] +" -l h_rt=72:00:00 -cwd -b y -pe omp 8 "               + "/share/pkg/r/3.4.2/install/bin/Rscript 1_simpipe_syseval.R " + splt[2] + " " + splt[1] + " 1.5 2 FALSE 0 " + splt[0])
     
 
 
@@ -40,7 +40,7 @@ sim_short_names = ["size_" + str(ii) + "_" + jj for ii in Nsize_vec for jj in me
 
 for i in range(len(sim_short_names)):
     splt = sim_short_names[i].split("_")
-    os.system("qsub -P combat -o SysEval/logs/" + sim_short_names[i] + ".txt "               + "-e SysEval/logs/" + sim_short_names[i]  + "_err.txt "               + "-N " + sim_short_names[i] +" -cwd -b y -pe omp 8 "               + "/share/pkg/r/3.4.2/install/bin/Rscript 1_simpipe_syseval.R " + splt[2] + " 3 1.5 2 TRUE " + splt[1] + " " + splt[0])
+    os.system("qsub -P combat -o SysEval/logs/" + sim_short_names[i] + ".txt "               + "-e SysEval/logs/" + sim_short_names[i]  + "_err.txt "               + "-N " + sim_short_names[i] +" -l h_rt=72:00:00 -cwd -b y -pe omp 8 "               + "/share/pkg/r/3.4.2/install/bin/Rscript 1_simpipe_syseval.R " + splt[2] + " 3 1.5 2 TRUE " + splt[1] + " " + splt[0])
     
 
 
@@ -53,7 +53,7 @@ sim_short_names = ["sig_" + str(ii) + "_" + str(jj) + "_" + kk for ii in batch_m
 
 for i in range(len(sim_short_names)):
     splt = sim_short_names[i].split('_')
-    os.system("qsub -P combat -o SysEval/logs/" + sim_short_names[i] + ".txt "               + "-e SysEval/logs/" + sim_short_names[i]  + "_err.txt "               + "-N " + sim_short_names[i] +" -cwd -b y -pe omp 8 "               + "/share/pkg/r/3.4.2/install/bin/Rscript 1_simpipe_syseval.R " + splt[3] + " 3 " + splt[1] + " " + splt[2] + " TRUE 60 " + splt[0])
+    os.system("qsub -P combat -o SysEval/logs/" + sim_short_names[i] + ".txt "               + "-e SysEval/logs/" + sim_short_names[i]  + "_err.txt "               + "-N " + sim_short_names[i] +" -l h_rt=72:00:00 -cwd -b y -pe omp 8 "               + "/share/pkg/r/3.4.2/install/bin/Rscript 1_simpipe_syseval.R " + splt[3] + " 3 " + splt[1] + " " + splt[2] + " TRUE 60 " + splt[0])
 
 
 # In[ ]:

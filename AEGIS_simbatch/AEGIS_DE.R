@@ -1,6 +1,6 @@
 rm(list=ls())
-setwd("C:/Users/zhang/Dropbox/Work/MultiStudy_BatchEffect/AEGIS_simbatch/")
-lapply(c("GEOquery", "ggplot2", "limma", "BatchQC"), require, character.only=TRUE)
+setwd("~/Dropbox/Work/MultiStudy_BatchEffect/AEGIS_simbatch/")
+sapply(c("GEOquery", "ggplot2", "limma", "BatchQC"), require, character.only=TRUE)
 
 
 ####  Load data from GEO
@@ -32,6 +32,9 @@ de_fit <- eBayes(de_fit)
 de_res_aegis2 <- topTable(de_fit, number=nrow(aegis2_data))
 length(which(de_res_aegis2$adj.P.Val<0.05))
 
+# range of fold change
+
+
 de_res_aegis2_sel <- topTable(de_fit, number=100)
 selected_genes <- rownames(de_res_aegis2_sel)
 range(de_res_aegis2_sel$adj.P.Val)
@@ -48,3 +51,5 @@ length(which(de_res_aegis1$adj.P.Val<0.05))
 range(de_res_aegis1[selected_genes, "adj.P.Val"])
 hist(de_res_aegis1[selected_genes, "adj.P.Val"], xlab="FDR adjusted P values",
      main="FDR adjusted P values in selected genes, AEGIS-1 test")
+
+# range of fold change

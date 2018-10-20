@@ -56,7 +56,7 @@ if(reduce_size){
 print(table(y_train))
 
 ## Pipeline
-iterations <- 1000
+iterations <- 500
 plot_sim_ind <- NULL 
 use_ref_combat <- FALSE #as.logical(command_args[7])  # whether to use ref combat to adjust test set against training set
 test_item <- command_args[7]  # factor being tested, c("sig", "size", "nbatch")
