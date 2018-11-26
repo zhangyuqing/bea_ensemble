@@ -13,6 +13,7 @@ subset_colnames <- c("NoBatch", "Batch", "ComBat",
                      "Avg", "n_Avg", "CS_Avg", "Reg_a", "Reg_s", "Method")
 
 
+
 ####  Number of batches  ####
 nbatch_file_lst <- file_lst[grep("nbatch", file_lst)]
 print(length(nbatch_file_lst))
@@ -61,6 +62,7 @@ print(ggplot(res_all_subset, aes(x=variable, y=value)) +
 dev.off()  
 rm(curr_nbatch_files, nbatch_file_lst, i, nbatch_res_lst, nbatch_subset_res_lst, 
    re_level, res_all, res_all_subset, res_allmethods, res_subset, res_lst)
+
 
 
 ####  Sample size  ####
@@ -116,6 +118,7 @@ dev.off()
 
 rm(curr_size_files, size_file_lst, j, size_res_lst, size_subset_res_lst, 
    re_level, res_all, res_all_subset, res_allmethods, res_subset, res_lst)
+
 
 
 ####  Strength of signal: mean batch effect  ####
