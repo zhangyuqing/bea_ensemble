@@ -1,6 +1,6 @@
 rm(list=ls())
 setwd("~/Documents/MSBE/TB/")
-sapply(c("ggplot2", "gridExtra", "reshape2"), require, character.only=TRUE)
+sapply(c("ggplot2", "gridExtra", "reshape2", "DelayedMatrixStats"), require, character.only=TRUE)
 
 if(!dir.exists("figures")){dir.create("figures")}
 file_lst <- dir()[grep(".csv", dir(), fixed=TRUE)]  # all results files
@@ -31,8 +31,25 @@ for(curr_mod in method_names){
                   axis.title.x=element_blank()) +
             labs(y=perf_measures_plt[curr_perf])) 
     dev.off()  
+    
+    decr <- TRUE
+    if(curr_perf=="mxe"){decr <- FALSE}
+    res_med <- lapply(res_lst, function(res){names(sort(colMeans(res, na.rm=TRUE), decreasing=decr))})
+    res_med_plt <- data.frame(rank=1:8, melt(res_med))
+    
+    png(sprintf("./figures/rank_%s_%s.png", curr_mod, curr_perf), width=5, height=3, units="in", res=300)
+    print(ggplot(res_med_plt, aes(x=1, y=rank, label=value)) + #, color=variable)) +
+            geom_text() +
+            facet_wrap(~L1, nrow=1) +
+            theme(axis.text.x=element_blank(),
+                  axis.title.x=element_blank(),
+                  panel.grid.major = element_blank(), 
+                  panel.grid.minor = element_blank())+#,
+                  #panel.background = element_blank()) +
+            #theme_bw() +
+            scale_y_continuous(trans = "reverse", breaks = unique(res_med_plt$rank)) +
+            labs(y="Rank of methods")) 
+    dev.off()  
   }
 }
-
-
 
