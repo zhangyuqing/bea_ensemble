@@ -1,0 +1,6 @@
+#!/bin/bash -l
+
+module load R/3.5.1
+Rscript 1_simpipe_syseval_crossmod.R $1 $2 $3
+
+echo "Complete"
