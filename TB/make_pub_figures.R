@@ -99,6 +99,7 @@ dev.off()
 
 ########  Figure 2: ensemble single learner - RF  ########
 rm(list=ls())
+setwd("~/Documents/MSBE/pub_figures/")
 sapply(c("ggplot2", "gridExtra", "reshape2", "DelayedMatrixStats", "plyr", "ggpubr"), 
        require, character.only=TRUE)
 results_dir <- "~/Documents/MSBE/TB_crossmod_reproduce/"
@@ -144,7 +145,7 @@ for(curr_perf in perf_measures){
   plt_df$variable <- revalue(plt_df$variable, c("Batch" = "No adjustment", 
                                                 "ComBat" = "Merge + ComBat",
                                                 "n_Avg" = "Batch size weights",  
-                                                "CS_Avg" = "Replicability weights", 
+                                                "CS_Avg" = "Cross-study weights", 
                                                 "Reg_s" = "Stacking regression weights"))
   plt_df$L1 <- revalue(plt_df$L1, c("m0_v1"="Mean difference 0\nVariance fold change 1", 
                                     "m0_v3"="Mean difference 0\nVariance fold change 3",
@@ -178,6 +179,7 @@ dev.off()
 
 ## include cross-mod results (Fig2_v2)
 rm(list=ls())
+setwd("~/Documents/MSBE/pub_figures/")
 sapply(c("ggplot2", "gridExtra", "reshape2", "DelayedMatrixStats", "plyr", "ggpubr"), 
        require, character.only=TRUE)
 results_dir <- "~/Documents/MSBE/TB_crossmod_reproduce/"
@@ -200,7 +202,8 @@ curr_mod <- "rf"
 batch_levels <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 
                            1, paste, collapse="_"))
 curr_files_mv_suffix <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 1, paste, collapse="_"))
-curr_file_lst <-  sort(apply(expand.grid(c("crossmod", method_names), paste0(curr_perf, "_batchN", N_sample_size, "_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_"))
+curr_file_lst <-  sort(apply(expand.grid(c("crossmod", method_names), 
+                                         paste0(curr_perf, "_batchN", N_sample_size, "_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_"))
 print(curr_file_lst)
 crossmod_res_lst <- base_lst <- list()
 bl = batch_levels[1]
@@ -211,22 +214,25 @@ for(bl in batch_levels){
   
   tmp <- read.csv(paste0(results_dir, curr_file_lst_bl[i]), header=TRUE)[, c("Batch", "ComBat", "n_Avg","CS_Avg","Reg_s")]
   colnames(tmp) <- paste0(curr_mod, c(".Batch", ".ComBat", ".n_Avg",".CS_Avg",".Reg_s"))
-  tmp <- data.frame(melt(tmp), Type=rep(c("With batch effect, no adjustment", "Merge + ComBat", rep("Ensemble (single learner)",3)), each=nrow(tmp)))
+  tmp <- data.frame(melt(tmp), Type=rep(c("With batch effect, no adjustment", "Merge + ComBat", rep("Ensemble (single learner)",3)), 
+                                        each=nrow(tmp)))
   crossmod_res_lst[[bl]] <- rbind(crossmod_res, tmp)
   
   base_lst[[bl]] <- read.csv(paste0(results_dir, curr_file_lst_bl[i]), header=TRUE)[, "NoBatch"]
 }
 plt_df <- melt(crossmod_res_lst)
-plt_df$variable <- factor(plt_df$variable, levels=c(paste0(strsplit(curr_file_lst_bl[i],"_")[[1]][1], c(".Batch", ".ComBat", ".n_Avg",".CS_Avg",".Reg_s")), subset_colnames_crossmod[-c(1:3)]))
+plt_df$variable <- factor(plt_df$variable, 
+                          levels=c(paste0(strsplit(curr_file_lst_bl[i],"_")[[1]][1], c(".Batch", ".ComBat", ".n_Avg",".CS_Avg",".Reg_s")), 
+                                   subset_colnames_crossmod[-c(1:3)]))
 plt_df$Type <- factor(plt_df$Type, levels=c("With batch effect, no adjustment", "Merge + ComBat", 
                                             "Ensemble (single learner)", "Ensemble (across learners)"))
 plt_df$variable <- revalue(plt_df$variable, c("rf.Batch" = "No adjustment (RF only)", 
                                               "rf.ComBat" = "Merge + ComBat (RF only)",
-                                              "rf.n_Avg" = "Weighted average (RF only)",  
-                                              "rf.CS_Avg" = "Rewards replicability (RF only)", 
+                                              "rf.n_Avg" = "Batch size weights (RF only)",  
+                                              "rf.CS_Avg" = "Cross-study weights (RF only)", 
                                               "rf.Reg_s" = "Regression stacking (RF only)",
-                                              "n_Avg" = "Weighted average (across learners)",
-                                              "CS_Avg" = "Rewards replicability (across learners)",
+                                              "n_Avg" = "Batch size weights (across learners)",
+                                              "CS_Avg" = "Cross-study weights (across learners)",
                                               "Reg_s" = "Regression stacking (across learners)"))
 plt_df$L1 <- revalue(plt_df$L1, c("m0_v1"="Mean difference 0\nVariance fold change 1", 
                                   "m0_v3"="Mean difference 0\nVariance fold change 3",
@@ -262,10 +268,10 @@ dev.off()
 
 ########  Figure 4: real data application  ########
 rm(list=ls())
-setwd("~/Documents/MSBE/TB_realdata_Testswap/")
 sapply(c("ggplot2", "gridExtra", "reshape2", "DelayedMatrixStats", "dplyr", "plyr","ggpubr"), 
        require, character.only=TRUE)
 
+results_dir <- "~/Documents/MSBE/TB_realdata_Testswap"
 study_names <- c("Brazil_1", "India", "Africa")
 norm_data <- TRUE 
 use_ref_combat <- FALSE 
@@ -283,7 +289,7 @@ for(i in 1:length(perf_measures)){
   for(j in 1:length(study_names)){
     curr_testset <- study_names[j]
     file_prefix <- sprintf("test%s", curr_testset)
-    res_lst[[curr_perf]][[curr_testset]] <- read.csv(paste0(file_prefix, "_", curr_perf, ".csv"))
+    res_lst[[curr_perf]][[curr_testset]] <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
     colnames(res_lst[[curr_perf]][[curr_testset]]) <- c("Method", "value", "Model", "Iteration")
     
     sumstats <- res_lst[[curr_perf]][[curr_testset]] %>%
@@ -296,7 +302,7 @@ for(i in 1:length(perf_measures)){
     sumstats$Type <- factor(sumstats$Type, levels=c("Original Data", "ComBat", "Ensemble"))
     sumstats$Method <- factor(sumstats$Method, levels=c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
     sumstats$Method <- plyr::revalue(sumstats$Method, c("Batch"="Original data", "ComBat"="Merge + ComBat",
-                                                        "n_Avg"="Weighted Average", "CS_Avg"="Rewards replicability",
+                                                        "n_Avg"="Batch size weights", "CS_Avg"="Cross-study weights",
                                                         "Reg_s"="Regression stacking"))
     
     sumstats_crossmod <- dplyr::filter(sumstats, Model=="crossmod")
@@ -304,7 +310,6 @@ for(i in 1:length(perf_measures)){
       geom_errorbar(aes(ymin=Down, ymax=Up), width=.1) +
       geom_line(aes(x=Method, y=Avg, group=1), color="grey") +
       geom_point() +
-      #facet_wrap(~Model, nrow=2, ncol=2) +
       labs(y=perf_measures_names[perf_measures[i]],
            title=ifelse(curr_perf=="auc", paste("Test set:", gsub("_1", "", curr_testset)), "")) +
       theme_bw() +
@@ -316,7 +321,7 @@ for(i in 1:length(perf_measures)){
   }
 }
 
-png("Fig5.png", width=7, height=8, units="in", res=300)
+png("Fig4.png", width=7, height=8, units="in", res=300)
 ggarrange(plt_crossmod[["auc"]][["Africa"]], plt_crossmod[["mxe"]][["Africa"]], 
           plt_crossmod[["auc"]][["Brazil_1"]], plt_crossmod[["mxe"]][["Brazil_1"]], 
           plt_crossmod[["auc"]][["India"]], plt_crossmod[["mxe"]][["India"]], 
@@ -340,7 +345,7 @@ for(i in 1:length(perf_measures)){
   sumstats_pooled$Method <- factor(sumstats_pooled$Method, levels=c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
   sumstats_pooled$Method <- plyr::revalue(sumstats_pooled$Method, 
                                           c("Batch"="Original data", "ComBat"="Merge + ComBat",
-                                            "n_Avg"="Weighted Average", "CS_Avg"="Rewards replicability",
+                                            "n_Avg"="Batch size weights", "CS_Avg"="Cross-study weights",
                                             "Reg_s"="Regression stacking"))
   sumstats_pooled_crossmod <- dplyr::filter(sumstats_pooled, Model=="crossmod")
   plt_pooled[[curr_perf]] <- ggplot(sumstats_pooled_crossmod, aes(x=Method, y=Avg, color=Type)) + 
@@ -355,7 +360,7 @@ for(i in 1:length(perf_measures)){
           legend.title=element_blank())
 }
 
-png("Fig5_b.png", width=7.5, height=3.5, units="in", res=300)
+png("Fig4_b.png", width=7.5, height=3.5, units="in", res=300)
 ggarrange(plt_pooled[["auc"]], plt_pooled[["mxe"]], 
           ncol=2, nrow=1, common.legend=TRUE, legend="right")
 dev.off()
@@ -497,8 +502,10 @@ curr_perf <- "auc"
 subset_colnames_crossmod <- c("NoBatch", "Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s") 
 
 curr_files_mv_suffix <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 1, paste, collapse="_"))
-curr_file_lst <- sort(c(sort(apply(expand.grid(c("crossmod", method_names), paste0(curr_perf, "_batchN20_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_")),
-                        sort(apply(expand.grid(c("crossmod", method_names), paste0(curr_perf, "_batchN40_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_"))))
+curr_file_lst <- sort(c(sort(apply(expand.grid(c("crossmod", method_names), 
+                                               paste0(curr_perf, "_batchN20_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_")),
+                        sort(apply(expand.grid(c("crossmod", method_names), 
+                                               paste0(curr_perf, "_batchN40_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_"))))
 print(curr_file_lst)
 
 #bl=batch_levels[1]
@@ -536,8 +543,8 @@ plt_df$variable <- revalue(plt_df$variable, c("lasso.NoBatch"="No batch effect, 
                                               "rf.Batch"="With batch, no adjustment, RF",
                                               "lasso.ComBat"="Merge + ComBat, LASSO",
                                               "rf.ComBat"="Merge + ComBat, RF",
-                                              "n_Avg"="Weighted average (across learners)",
-                                              "CS_Avg"="Replicability weights (across learners)",
+                                              "n_Avg"="Batch size weights (across learners)",
+                                              "CS_Avg"="Cross-study weights (across learners)",
                                               "Reg_s"="Regression stacking (across learners)"))
 plt_df$Type <- revalue(plt_df$Type, c("Baseline"="No batch effect",
                                       "Batch"="With batch, no adjustment",
@@ -550,7 +557,7 @@ plt_df$L1 <- revalue(plt_df$L1, c("m3_v1"="Mean difference 3\nVariance fold chan
                                   "m3_v4"="Mean difference 3\nVariance fold change 4",
                                   "m3_v5"="Mean difference 3\nVariance fold change 5"))
                             
-png("Fig3.png", width=12, height=7, units="in", res=300)
+png("Fig3.png", width=11, height=7, units="in", res=300)
 print(ggplot(plt_df, aes(x=variable, y=value, fill=Type)) +
         geom_boxplot() +
         scale_fill_manual(values=c("white","#999999", "#E69F00", "#56B4E9")) +
@@ -566,7 +573,7 @@ dev.off()
 
 
 
-########  Supplementary figure 2: full simulation results   ########
+########  Supplementary figure 2-4: full simulation results   ########
 rm(list=ls())
 sapply(c("ggplot2", "gridExtra", "reshape2", "DelayedMatrixStats", "plyr", "ggpubr"), 
        require, character.only=TRUE)
@@ -586,25 +593,26 @@ subset_colnames_crossmod <- c("NoBatch", "Batch", "ComBat", "Avg", "n_Avg", "CS_
 curr_perf <- "auc"
 
 #i = 2; curr_mod = 'lasso'; ylim_l = 0.4
-#i = 3; curr_mod = 'rf'; ylim_l = 0.5
-i = 4; curr_mod = 'svm'; ylim_l = 0.3
-plt_label_vec <- c("svm.Batch" = "No adjustment",  # (LASSO only)", 
-                   "svm.ComBat" = "Merge + ComBat",  # (LASSO only)",
-                   "svm.Avg" = "Simple average",  # (LASSO only)",
-                   "svm.n_Avg" = "Weighted average",  # (LASSO only)",  
-                   "svm.CS_Avg" = "Rewards replicability",  # (LASSO only)", 
-                   "svm.Reg_a" = "Regression aggregate",  # (LASSO only)",
-                   "svm.Reg_s" = "Regression stacking",  # (LASSO only)",
+i = 3; curr_mod = 'rf'; ylim_l = 0.5
+#i = 4; curr_mod = 'svm'; ylim_l = 0.3
+plt_label_vec <- c("rf.Batch" = "No adjustment",  # (LASSO only)", 
+                   "rf.ComBat" = "Merge + ComBat",  # (LASSO only)",
+                   "rf.Avg" = "Simple average",  # (LASSO only)",
+                   "rf.n_Avg" = "Batch size weights",  # (LASSO only)",  
+                   "rf.CS_Avg" = "Cross-study weights",  # (LASSO only)", 
+                   "rf.Reg_a" = "Regression aggregate",  # (LASSO only)",
+                   "rf.Reg_s" = "Regression stacking",  # (LASSO only)",
                    "Avg" = "Simple average (across learners)",
-                   "n_Avg" = "Weighted average (across learners)",  
-                   "CS_Avg" = "Rewards replicability (across learners)", 
+                   "n_Avg" = "Batch size weights (across learners)",  
+                   "CS_Avg" = "Cross-study weights (across learners)", 
                    "Reg_a" = "Regression aggregate (across learners)",
                    "Reg_s" = "Regression stacking (across learners)")
 
 batch_levels <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 
                            1, paste, collapse="_"))
 curr_files_mv_suffix <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 1, paste, collapse="_"))
-curr_file_lst <-  sort(apply(expand.grid(c("crossmod", method_names), paste0(curr_perf, "_batchN", N_sample_size, "_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_"))
+curr_file_lst <-  sort(apply(expand.grid(c("crossmod", method_names), 
+                                         paste0(curr_perf, "_batchN", N_sample_size, "_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_"))
 print(curr_file_lst)
 crossmod_res_lst <- base_lst <- list()
 bl = batch_levels[1]
@@ -666,4 +674,102 @@ print(ggplot(plt_df, aes(x=variable, y=value, fill=Type)) +
               legend.position = "bottom",
               plot.margin = margin(0.1, 0.1, 0.1, 0.3, "cm")) +
         labs(y=perf_measures_plt[curr_perf]))
+dev.off()  
+
+
+
+
+########  Supplementary figure 5: number of batches comparison   ########
+rm(list=ls())
+sapply(c("ggplot2", "gridExtra", "reshape2", "DelayedMatrixStats", "plyr", "ggpubr"), 
+       require, character.only=TRUE)
+setwd("~/Documents/MSBE/pub_figures/")
+
+results_dir_3b <- "~/Documents/MSBE/TB_crossmod_reproduce"
+results_dir_5b <- "~/Documents/MSBE/TB_crossmod_reproduce_5batches"
+file_lst <- grep(".csv", dir(results_dir_3b), fixed=TRUE, value=TRUE)  # all results files
+
+method_names <- c("lasso", "rf", "svm")
+method_names_plt <- c("Lasso logistic regression", "Random Forest", "Support Vector Machines"); 
+names(method_names_plt) <- method_names
+perf_measures <- c("mxe", "auc")
+perf_measures_plt <- c("Mean cross-entropy loss", "AUC")
+names(perf_measures_plt) <- perf_measures
+N_sample_size <- 20
+batch_mean_vec <- 3
+batch_var_vec <- c(2,4,6,8)
+batch_levels <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 1, paste, collapse="_"))
+curr_perf <- "auc"
+subset_colnames_crossmod <- c("NoBatch", "Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s") 
+
+curr_files_mv_suffix <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 1, paste, collapse="_"))
+curr_file_lst <- sort(sort(apply(expand.grid(c("crossmod", method_names), paste0(curr_perf, "_batchN20_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_")))
+print(curr_file_lst)
+
+#bl=batch_levels[1]
+crossmod_res_lst <- list() 
+for(bl in batch_levels){
+  curr_file_lst_bl <- grep(bl, curr_file_lst, value=TRUE)
+  #curr_fname = curr_file_lst_bl[1]
+  crossmod_res <- lapply(curr_file_lst_bl, function(curr_fname){
+    res_3b <- read.csv(file.path(results_dir_3b, curr_fname), header=TRUE)
+    res_5b <- read.csv(file.path(results_dir_5b, curr_fname), header=TRUE)
+    
+    curr_f_id <- strsplit(curr_fname, "_")[[1]]
+    if(curr_f_id[1]=="crossmod"){
+      res <- rbind(data.frame(res_3b[, subset_colnames_crossmod[-c(1:3)]], Nbatch="3 simulated batches"),
+                   data.frame(res_5b[, subset_colnames_crossmod[-c(1:3)]], Nbatch="5 simulated batches"))
+      res <- data.frame(melt(res), Type="Ensemble")
+    }else if(curr_f_id[1] %in% c("lasso", "rf")){
+      res <- rbind(data.frame(res_3b[, c("NoBatch", "Batch", "ComBat")], Nbatch="3 simulated batches"),
+                   data.frame(res_5b[, c("NoBatch", "Batch", "ComBat")], Nbatch="5 simulated batches"))
+      colnames(res)[1:3] <- paste0(curr_f_id[1], c(".NoBatch", ".Batch", ".ComBat"))
+      res <- data.frame(melt(res), Type=rep(c("Baseline", "Batch", "ComBat"), each=nrow(res)))
+    }else{
+      res <- NULL
+    }
+    return(res)
+  })
+  crossmod_res <- crossmod_res[sapply(crossmod_res, function(res){!is.null(res)})]
+  crossmod_res_lst[[bl]] <- do.call(rbind, crossmod_res)
+}
+names(crossmod_res_lst) <- batch_levels
+plt_df <- melt(crossmod_res_lst)
+plt_df$variable <- factor(plt_df$variable, levels=c("lasso.NoBatch", "rf.NoBatch", "lasso.Batch", "rf.Batch", 
+                                                    "lasso.ComBat", "rf.ComBat", subset_colnames_crossmod[-c(1:3)]))
+plt_df$Type <- factor(plt_df$Type, levels=c("Baseline", "Batch", "ComBat", "Ensemble"))
+
+plt_df$variable <- revalue(plt_df$variable, c("lasso.NoBatch"="No batch effect, LASSO",
+                                              "rf.NoBatch"="No batch effect, RF",
+                                              "lasso.Batch"="With batch, no adjustment, LASSO",
+                                              "rf.Batch"="With batch, no adjustment, RF",
+                                              "lasso.ComBat"="Merge + ComBat, LASSO",
+                                              "rf.ComBat"="Merge + ComBat, RF",
+                                              "n_Avg"="Batch size weights (across learners)",
+                                              "CS_Avg"="Cross-study weights (across learners)",
+                                              "Reg_s"="Regression stacking (across learners)"))
+plt_df$Type <- revalue(plt_df$Type, c("Baseline"="No batch effect",
+                                      "Batch"="With batch, no adjustment",
+                                      "ComBat"="Merge + ComBat",
+                                      "Ensemble" = "Ensemble (across learners)"))
+plt_df$L1 <- revalue(plt_df$L1, c(#"m3_v1"="Mean difference 3\nVariance fold change 1", 
+                                  "m3_v2"="Mean difference 3\nVariance fold change 2",
+                                  #"m3_v3"="Mean difference 3\nVariance fold change 3",
+                                  "m3_v4"="Mean difference 3\nVariance fold change 4",
+                                  #"m3_v5"="Mean difference 3\nVariance fold change 5",
+                                  "m3_v6"="Mean difference 3\nVariance fold change 6",
+                                  #"m3_v7"="Mean difference 3\nVariance fold change 7",
+                                  "m3_v8"="Mean difference 3\nVariance fold change 8"))
+
+png("FigS5.png", width=10, height=7, units="in", res=300)
+print(ggplot(plt_df, aes(x=variable, y=value, fill=Type)) +
+        geom_boxplot() +
+        scale_fill_manual(values=c("white","#999999", "#E69F00", "#56B4E9")) +
+        facet_grid(Nbatch~L1) +
+        theme(axis.text.x=element_text(angle=40, hjust=1),
+              axis.title.x=element_blank(), 
+              legend.title=element_blank(),
+              legend.position="bottom",
+              plot.margin = margin(0.1, 0.1, 0.1, 1, "cm")) +
+        labs(y=perf_measures_plt[curr_perf])) 
 dev.off()  
