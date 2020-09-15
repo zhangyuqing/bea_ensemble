@@ -22,16 +22,16 @@ This repository stores all scripts to reproduce results and figures in the follo
 ## Simulation 
 To run the simulation pipeline, execute the following code in command line:
 
-> Rscript 1_simpipe.R <sample size per batch> <mean batch effect> <variance batch effect>
+``Rscript 1_simpipe.R <sample size per batch> <mean batch effect> <variance batch effect>``
 
 This will output performance metrics of models in a sub-directory named **./results**. This sub-directory will be created if it does not exist. The result files can be used to generate figures in the paper. The scripts can also be ran on HPC environment, with bash scripts as encluded in the code directory. 
 
 
 ## Real data application
-**./code/2_TB_getdata.R** generates the data under **./data**. Real data are downlowded from GEO using GEOquery, annotated, and processed. 
+**./code/2_TB_getdata.R** generates the data under **./data**. Real data are downlowded from GEO using GEOquery, annotated, and cleaned by this script. 
 
 **./code/3_real_data_pipe.R** is used to perform bootstrap sampling on the test data, and evaluated the trained model on each bootstrap. Simply execute the pipeline with
 
-> Rscript 3_real_data_pipe.R
+``Rscript 3_real_data_pipe.R``
 
-Model performance metrics will be output to a sub-directory named **./results_real/** (automatically created if not exist).
+Model performance metrics will be output to a sub-directory named **./results_real** (automatically created if not exist).
