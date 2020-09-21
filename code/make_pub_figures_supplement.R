@@ -710,6 +710,10 @@ dev.off()
 
 
 
+
+
+
+
 ########  Supplementary figure S9: AUC ##########
 rm(list=ls())
 source("./code/helper.R")
@@ -905,6 +909,533 @@ dev.off()
 
 
 
+
+########  Supplementary figure S10: real data choice of genes ##########
+rm(list=ls())
+source("./code/helper.R")
+#### 4 studies
+results_dir <- "~/Documents/MSBE/TB_realdata_v4_10gene/"
+study_names <- c("GSE37250_SA", "GSE37250_M", "US", "India")
+study_label <- c("F", "G", "E", "D")
+names(study_label) <- study_names
+norm_data <- TRUE 
+use_ref_combat <- FALSE 
+match_preval <- FALSE
+perf_measures <- c("mxe", "auc")  
+perf_measures_names <- c("Mean cross-entropy loss", "AUC")  
+names(perf_measures_names) <- perf_measures
+selected_method <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+MODEL <- "crossmod"
+curr_perf <- "mxe"
+freq_lst <- list()
+for(j in 1:length(study_names)){
+  curr_testset <- study_names[j]
+  file_prefix <- sprintf("test%s", curr_testset)
+  res <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+  colnames(res) <- c("Method", "value", "Model", "Iteration")
+  res$Study <- curr_testset
+  total_count <- rep(0, 5)
+  for(b in 1:100){
+    curr_iter <- dplyr::filter(res, Iteration==b, Model=="crossmod", 
+                               Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    total_count[which.min(curr_iter$value)] <- total_count[which.min(curr_iter$value)] + 1 
+  }
+  names(total_count) <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+  freq_lst[[study_names[j]]] <- total_count / 100
+}
+annot_tb <- do.call(rbind, freq_lst)
+rownames(annot_tb) <- study_label
+plt_4s <- res_lst <- list()
+i=1;j=1
+for(i in 1:length(perf_measures)){
+  curr_perf <- perf_measures[i]
+  res_lst[[curr_perf]] <- plt_4s[[curr_perf]] <- list()
+  for(j in 1:length(study_names)){
+    curr_testset <- study_names[j]
+    file_prefix <- sprintf("test%s", curr_testset)
+    res_lst[[curr_perf]][[curr_testset]] <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+    colnames(res_lst[[curr_perf]][[curr_testset]]) <- c("Method", "value", "Model", "Iteration")
+    
+    sumstats <- res_lst[[curr_perf]][[curr_testset]] %>%
+      dplyr::filter(Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")) %>%
+      dplyr::group_by(Method, Model) %>%
+      dplyr::summarise(Avg=mean(value), Up=quantile(value, 0.975), Down=quantile(value, 0.025))
+    sumstats$Type <- rep("Original Data", nrow(sumstats))
+    sumstats$Type[sumstats$Method=="ComBat"] <- "Merging"
+    sumstats$Type[sumstats$Method %in% c("n_Avg","CS_Avg","Reg_s")] <- "Ensemble"
+    sumstats$Type <- factor(sumstats$Type, levels=c("Original Data", "Merging", "Ensemble"))
+    sumstats$Method <- factor(sumstats$Method, levels=c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    sumstats$Method <- plyr::revalue(sumstats$Method, c("Batch"="Original data", "ComBat"="Merge + ComBat",
+                                                        "n_Avg"="Batch size", "CS_Avg"="Cross-study",
+                                                        "Reg_s"="Stacking regression"))
+    sumstats_crossmod <- dplyr::filter(sumstats, Model==MODEL)
+    sumstats_crossmod$Annot <- ""
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Original data"] <- scales::percent(annot_tb[study_label[curr_testset], "Batch"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Merge + ComBat"] <- scales::percent(annot_tb[study_label[curr_testset], "ComBat"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Batch size"] <- scales::percent(annot_tb[study_label[curr_testset], "n_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Cross-study"] <- scales::percent(annot_tb[study_label[curr_testset], "CS_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Stacking regression"] <- scales::percent(annot_tb[study_label[curr_testset], "Reg_s"])
+    plt_4s[[curr_perf]][[curr_testset]] <- ggplot(sumstats_crossmod, aes(x=Method, y=Avg, color=Type)) +
+      geom_errorbar(aes(ymin=Down, ymax=Up), width=.1) +
+      geom_text(aes(label=Annot, y=1), color="black", size=3.5) + 
+      geom_line(aes(x=Method, y=Avg, group=1), color="grey") +
+      geom_point() +
+      labs(y=perf_measures_names[perf_measures[i]],
+           title=ifelse(curr_perf=="mxe", paste("Test set:", study_label[curr_testset]), "")) +
+      theme_bw() +
+      theme(axis.title.x=element_blank(),
+            axis.text.x=element_text(angle=30, hjust=1),
+            legend.title=element_blank(),
+            panel.grid.major=element_blank())
+    res_lst[[curr_perf]][[curr_testset]]$Study <- curr_testset
+  }
+}
+#### 6 studies
+results_dir <- "~/Documents/MSBE/TB_realdata_v3_10gene/"
+study_names <- c("GSE37250_SA", "GSE37250_M", "GSE39941_M", "US", "Africa", "India")
+study_label <- c("F", "G", "C", "E", "A", "D")
+names(study_label) <- study_names
+norm_data <- TRUE 
+use_ref_combat <- FALSE 
+match_preval <- FALSE
+perf_measures <- c("mxe", "auc", "rmse", "f", "err", "acc") 
+perf_measures_names <- c("Mean cross-entropy loss", "AUC", "Root-mean-squared error", 
+                         "F1 score", "Error rate", "Accuracy") 
+names(perf_measures_names) <- perf_measures
+selected_method <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+MODEL <- "crossmod"
+curr_perf <- "mxe"
+freq_lst <- list()
+for(j in 1:length(study_names)){
+  curr_testset <- study_names[j]
+  file_prefix <- sprintf("test%s", curr_testset)
+  res <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+  colnames(res) <- c("Method", "value", "Model", "Iteration")
+  res$Study <- curr_testset
+  total_count <- rep(0, 5)
+  for(b in 1:100){
+    curr_iter <- dplyr::filter(res, Iteration==b, Model=="crossmod", 
+                               Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    total_count[which.min(curr_iter$value)] <- total_count[which.min(curr_iter$value)] + 1 
+  }
+  names(total_count) <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+  freq_lst[[study_names[j]]] <- total_count / 100
+}
+annot_tb <- do.call(rbind, freq_lst)
+rownames(annot_tb) <- study_label
+plt_6s <- res_lst <- list()
+for(i in 1:length(perf_measures)){
+  curr_perf <- perf_measures[i]
+  res_lst[[curr_perf]] <- plt_6s[[curr_perf]] <- list()
+  for(j in 1:length(study_names)){
+    curr_testset <- study_names[j]
+    file_prefix <- sprintf("test%s", curr_testset)
+    res_lst[[curr_perf]][[curr_testset]] <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+    colnames(res_lst[[curr_perf]][[curr_testset]]) <- c("Method", "value", "Model", "Iteration")
+    
+    sumstats <- res_lst[[curr_perf]][[curr_testset]] %>%
+      dplyr::filter(Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")) %>%
+      dplyr::group_by(Method, Model) %>%
+      dplyr::summarise(Avg=mean(value), Up=quantile(value, 0.975), Down=quantile(value, 0.025))
+    sumstats$Type <- rep("Original Data", nrow(sumstats))
+    sumstats$Type[sumstats$Method=="ComBat"] <- "Merging"
+    sumstats$Type[sumstats$Method %in% c("n_Avg","CS_Avg","Reg_s")] <- "Ensemble"
+    sumstats$Type <- factor(sumstats$Type, levels=c("Original Data", "Merging", "Ensemble"))
+    sumstats$Method <- factor(sumstats$Method, levels=c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    sumstats$Method <- plyr::revalue(sumstats$Method, c("Batch"="Original data", "ComBat"="Merge + ComBat",
+                                                        "n_Avg"="Batch size", "CS_Avg"="Cross-study",
+                                                        "Reg_s"="Stacking regression"))
+    sumstats_crossmod <- dplyr::filter(sumstats, Model==MODEL)
+    sumstats_crossmod$Annot <- ""
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Original data"] <- scales::percent(annot_tb[study_label[curr_testset], "Batch"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Merge + ComBat"] <- scales::percent(annot_tb[study_label[curr_testset], "ComBat"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Batch size"] <- scales::percent(annot_tb[study_label[curr_testset], "n_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Cross-study"] <- scales::percent(annot_tb[study_label[curr_testset], "CS_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Stacking regression"] <- scales::percent(annot_tb[study_label[curr_testset], "Reg_s"])
+    plt_6s[[curr_perf]][[curr_testset]] <- ggplot(sumstats_crossmod, aes(x=Method, y=Avg, color=Type)) +
+      geom_errorbar(aes(ymin=Down, ymax=Up), width=.1) +
+      geom_text(aes(label=Annot, y=1), color="black", size=3.5) + 
+      geom_line(aes(x=Method, y=Avg, group=1), color="grey") +
+      geom_point() +
+      labs(y=perf_measures_names[perf_measures[i]],
+           title=ifelse(curr_perf=="mxe", paste("Test set:", study_label[curr_testset]), "")) +
+      theme_bw() +
+      theme(axis.title.x=element_blank(),
+            axis.text.x=element_text(angle=30, hjust=1),
+            legend.title=element_blank(),
+            panel.grid.major=element_blank())
+    
+    res_lst[[curr_perf]][[curr_testset]]$Study <- curr_testset
+  }
+}
+lgd <- get_legend(plt_4s[["mxe"]][["GSE37250_SA"]])
+plt_4studies <- ggarrange(plt_4s[["mxe"]][["India"]], plt_4s[["mxe"]][["US"]], 
+                          plt_4s[["mxe"]][["GSE37250_SA"]], plt_4s[["mxe"]][["GSE37250_M"]], 
+                          ncol=4, nrow=1, common.legend=TRUE, legend="none")
+plt_4studies <- annotate_figure(plt_4studies, 
+                                top=text_grob("4 studies", face="bold", size=18, hjust=1, x=0.15))
+plt_6studies <- ggarrange(plt_6s[["mxe"]][["India"]], plt_6s[["mxe"]][["US"]], 
+                          plt_6s[["mxe"]][["GSE37250_SA"]], plt_6s[["mxe"]][["GSE37250_M"]], 
+                          plt_6s[["mxe"]][["Africa"]], plt_6s[["mxe"]][["GSE39941_M"]],
+                          ncol=6, nrow=1, common.legend=TRUE, legend="none")
+plt_6studies <- annotate_figure(plt_6studies, 
+                                top=text_grob("6 studies", face="bold", size=18, hjust=1, x=0.1))
+p <- arrangeGrob(plt_4studies, plt_6studies, lgd,                              
+                 ncol=3, nrow=3, layout_matrix=rbind(c(2,2,2), c(NA,NA,NA), c(1,1,3)),
+                 heights=c(1,0.1,1))
+plt_10gene <- as_ggplot(p)
+plt_10gene <- annotate_figure(plt_10gene, top=text_grob("Top 10 genes", face="bold", size=18, hjust=1, x=0.5))
+
+
+#### 4 studies
+results_dir <- "~/Documents/MSBE/TB_realdata_v4_100gene/"
+study_names <- c("GSE37250_SA", "GSE37250_M", "US", "India")
+study_label <- c("F", "G", "E", "D")
+names(study_label) <- study_names
+norm_data <- TRUE 
+use_ref_combat <- FALSE 
+match_preval <- FALSE
+perf_measures <- c("mxe", "auc")  
+perf_measures_names <- c("Mean cross-entropy loss", "AUC")  
+names(perf_measures_names) <- perf_measures
+selected_method <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+MODEL <- "crossmod"
+curr_perf <- "mxe"
+freq_lst <- list()
+for(j in 1:length(study_names)){
+  curr_testset <- study_names[j]
+  file_prefix <- sprintf("test%s", curr_testset)
+  res <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+  colnames(res) <- c("Method", "value", "Model", "Iteration")
+  res$Study <- curr_testset
+  total_count <- rep(0, 5)
+  for(b in 1:100){
+    curr_iter <- dplyr::filter(res, Iteration==b, Model=="crossmod", 
+                               Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    total_count[which.min(curr_iter$value)] <- total_count[which.min(curr_iter$value)] + 1 
+  }
+  names(total_count) <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+  freq_lst[[study_names[j]]] <- total_count / 100
+}
+annot_tb <- do.call(rbind, freq_lst)
+rownames(annot_tb) <- study_label
+plt_4s <- res_lst <- list()
+i=1;j=1
+for(i in 1:length(perf_measures)){
+  curr_perf <- perf_measures[i]
+  res_lst[[curr_perf]] <- plt_4s[[curr_perf]] <- list()
+  for(j in 1:length(study_names)){
+    curr_testset <- study_names[j]
+    file_prefix <- sprintf("test%s", curr_testset)
+    res_lst[[curr_perf]][[curr_testset]] <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+    colnames(res_lst[[curr_perf]][[curr_testset]]) <- c("Method", "value", "Model", "Iteration")
+    sumstats <- res_lst[[curr_perf]][[curr_testset]] %>%
+      dplyr::filter(Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")) %>%
+      dplyr::group_by(Method, Model) %>%
+      dplyr::summarise(Avg=mean(value), Up=quantile(value, 0.975), Down=quantile(value, 0.025))
+    sumstats$Type <- rep("Original Data", nrow(sumstats))
+    sumstats$Type[sumstats$Method=="ComBat"] <- "Merging"
+    sumstats$Type[sumstats$Method %in% c("n_Avg","CS_Avg","Reg_s")] <- "Ensemble"
+    sumstats$Type <- factor(sumstats$Type, levels=c("Original Data", "Merging", "Ensemble"))
+    sumstats$Method <- factor(sumstats$Method, levels=c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    sumstats$Method <- plyr::revalue(sumstats$Method, c("Batch"="Original data", "ComBat"="Merge + ComBat",
+                                                        "n_Avg"="Batch size", "CS_Avg"="Cross-study",
+                                                        "Reg_s"="Stacking regression"))
+    sumstats_crossmod <- dplyr::filter(sumstats, Model==MODEL)
+    sumstats_crossmod$Annot <- ""
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Original data"] <- scales::percent(annot_tb[study_label[curr_testset], "Batch"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Merge + ComBat"] <- scales::percent(annot_tb[study_label[curr_testset], "ComBat"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Batch size"] <- scales::percent(annot_tb[study_label[curr_testset], "n_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Cross-study"] <- scales::percent(annot_tb[study_label[curr_testset], "CS_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Stacking regression"] <- scales::percent(annot_tb[study_label[curr_testset], "Reg_s"])
+    plt_4s[[curr_perf]][[curr_testset]] <- ggplot(sumstats_crossmod, aes(x=Method, y=Avg, color=Type)) +
+      geom_errorbar(aes(ymin=Down, ymax=Up), width=.1) +
+      geom_text(aes(label=Annot, y=0.6), color="black", size=3.5) + 
+      geom_line(aes(x=Method, y=Avg, group=1), color="grey") +
+      geom_point() +
+      labs(y=perf_measures_names[perf_measures[i]],
+           title=ifelse(curr_perf=="mxe", paste("Test set:", study_label[curr_testset]), "")) +
+      theme_bw() +
+      theme(axis.title.x=element_blank(),
+            axis.text.x=element_text(angle=30, hjust=1),
+            legend.title=element_blank(),
+            panel.grid.major=element_blank())
+    res_lst[[curr_perf]][[curr_testset]]$Study <- curr_testset
+  }
+}
+#### 6 studies
+results_dir <- "~/Documents/MSBE/TB_realdata_v3_100gene/"
+study_names <- c("GSE37250_SA", "GSE37250_M", "GSE39941_M", "US", "Africa", "India")
+study_label <- c("F", "G", "C", "E", "A", "D")
+names(study_label) <- study_names
+norm_data <- TRUE 
+use_ref_combat <- FALSE 
+match_preval <- FALSE
+perf_measures <- c("mxe", "auc", "rmse", "f", "err", "acc") 
+perf_measures_names <- c("Mean cross-entropy loss", "AUC", "Root-mean-squared error", 
+                         "F1 score", "Error rate", "Accuracy") 
+names(perf_measures_names) <- perf_measures
+selected_method <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+MODEL <- "crossmod"
+curr_perf <- "mxe"
+freq_lst <- list()
+for(j in 1:length(study_names)){
+  curr_testset <- study_names[j]
+  file_prefix <- sprintf("test%s", curr_testset)
+  res <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+  colnames(res) <- c("Method", "value", "Model", "Iteration")
+  res$Study <- curr_testset
+  total_count <- rep(0, 5)
+  for(b in 1:100){
+    curr_iter <- dplyr::filter(res, Iteration==b, Model=="crossmod", 
+                               Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    total_count[which.min(curr_iter$value)] <- total_count[which.min(curr_iter$value)] + 1 
+  }
+  names(total_count) <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+  freq_lst[[study_names[j]]] <- total_count / 100
+}
+annot_tb <- do.call(rbind, freq_lst)
+rownames(annot_tb) <- study_label
+plt_6s <- res_lst <- list()
+for(i in 1:length(perf_measures)){
+  curr_perf <- perf_measures[i]
+  res_lst[[curr_perf]] <- plt_6s[[curr_perf]] <- list()
+  for(j in 1:length(study_names)){
+    curr_testset <- study_names[j]
+    file_prefix <- sprintf("test%s", curr_testset)
+    res_lst[[curr_perf]][[curr_testset]] <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+    colnames(res_lst[[curr_perf]][[curr_testset]]) <- c("Method", "value", "Model", "Iteration")
+    sumstats <- res_lst[[curr_perf]][[curr_testset]] %>%
+      dplyr::filter(Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")) %>%
+      dplyr::group_by(Method, Model) %>%
+      dplyr::summarise(Avg=mean(value), Up=quantile(value, 0.975), Down=quantile(value, 0.025))
+    sumstats$Type <- rep("Original Data", nrow(sumstats))
+    sumstats$Type[sumstats$Method=="ComBat"] <- "Merging"
+    sumstats$Type[sumstats$Method %in% c("n_Avg","CS_Avg","Reg_s")] <- "Ensemble"
+    sumstats$Type <- factor(sumstats$Type, levels=c("Original Data", "Merging", "Ensemble"))
+    sumstats$Method <- factor(sumstats$Method, levels=c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    sumstats$Method <- plyr::revalue(sumstats$Method, c("Batch"="Original data", "ComBat"="Merge + ComBat",
+                                                        "n_Avg"="Batch size", "CS_Avg"="Cross-study",
+                                                        "Reg_s"="Stacking regression"))
+    sumstats_crossmod <- dplyr::filter(sumstats, Model==MODEL)
+    sumstats_crossmod$Annot <- ""
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Original data"] <- scales::percent(annot_tb[study_label[curr_testset], "Batch"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Merge + ComBat"] <- scales::percent(annot_tb[study_label[curr_testset], "ComBat"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Batch size"] <- scales::percent(annot_tb[study_label[curr_testset], "n_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Cross-study"] <- scales::percent(annot_tb[study_label[curr_testset], "CS_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Stacking regression"] <- scales::percent(annot_tb[study_label[curr_testset], "Reg_s"])
+    plt_6s[[curr_perf]][[curr_testset]] <- ggplot(sumstats_crossmod, aes(x=Method, y=Avg, color=Type)) +
+      geom_errorbar(aes(ymin=Down, ymax=Up), width=.1) +
+      geom_text(aes(label=Annot, y=1), color="black", size=3.5) + 
+      geom_line(aes(x=Method, y=Avg, group=1), color="grey") +
+      geom_point() +
+      labs(y=perf_measures_names[perf_measures[i]],
+           title=ifelse(curr_perf=="mxe", paste("Test set:", study_label[curr_testset]), "")) +
+      theme_bw() +
+      theme(axis.title.x=element_blank(),
+            axis.text.x=element_text(angle=30, hjust=1),
+            legend.title=element_blank(),
+            panel.grid.major=element_blank())
+    res_lst[[curr_perf]][[curr_testset]]$Study <- curr_testset
+  }
+}
+lgd <- get_legend(plt_4s[["mxe"]][["GSE37250_SA"]])
+plt_4studies <- ggarrange(plt_4s[["mxe"]][["India"]], plt_4s[["mxe"]][["US"]], 
+                          plt_4s[["mxe"]][["GSE37250_SA"]], plt_4s[["mxe"]][["GSE37250_M"]], 
+                          ncol=4, nrow=1, common.legend=TRUE, legend="none")
+plt_4studies <- annotate_figure(plt_4studies, 
+                                top=text_grob("4 studies", face="bold", size=18, hjust=1, x=0.15))
+plt_6studies <- ggarrange(plt_6s[["mxe"]][["India"]], plt_6s[["mxe"]][["US"]], 
+                          plt_6s[["mxe"]][["GSE37250_SA"]], plt_6s[["mxe"]][["GSE37250_M"]], 
+                          plt_6s[["mxe"]][["Africa"]], plt_6s[["mxe"]][["GSE39941_M"]],
+                          ncol=6, nrow=1, common.legend=TRUE, legend="none")
+plt_6studies <- annotate_figure(plt_6studies, 
+                                top=text_grob("6 studies", face="bold", size=18, hjust=1, x=0.1))
+p <- arrangeGrob(plt_4studies, plt_6studies, lgd,                              
+                 ncol=3, nrow=3, layout_matrix=rbind(c(2,2,2), c(NA,NA,NA), c(1,1,3)),
+                 heights=c(1,0.1,1))
+plt_100gene <- as_ggplot(p)
+plt_100gene <- annotate_figure(plt_100gene, top=text_grob("Top 100 genes", face="bold", size=18, hjust=1, x=0.5))
+
+
+
+#### 4 studies
+results_dir <- "~/Documents/MSBE/TB_realdata_v4_10000gene/"
+study_names <- c("GSE37250_SA", "GSE37250_M", "US", "India")
+study_label <- c("F", "G", "E", "D")
+names(study_label) <- study_names
+norm_data <- TRUE 
+use_ref_combat <- FALSE 
+match_preval <- FALSE
+perf_measures <- c("mxe", "auc")  
+perf_measures_names <- c("Mean cross-entropy loss", "AUC")  
+names(perf_measures_names) <- perf_measures
+selected_method <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+MODEL <- "crossmod"
+curr_perf <- "mxe"
+freq_lst <- list()
+for(j in 1:length(study_names)){
+  curr_testset <- study_names[j]
+  file_prefix <- sprintf("test%s", curr_testset)
+  res <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+  colnames(res) <- c("Method", "value", "Model", "Iteration")
+  res$Study <- curr_testset
+  total_count <- rep(0, 5)
+  for(b in 1:100){
+    curr_iter <- dplyr::filter(res, Iteration==b, Model=="crossmod", 
+                               Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    total_count[which.min(curr_iter$value)] <- total_count[which.min(curr_iter$value)] + 1 
+  }
+  names(total_count) <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+  freq_lst[[study_names[j]]] <- total_count / 100
+}
+annot_tb <- do.call(rbind, freq_lst)
+rownames(annot_tb) <- study_label
+plt_4s <- res_lst <- list()
+i=1;j=1
+for(i in 1:length(perf_measures)){
+  curr_perf <- perf_measures[i]
+  res_lst[[curr_perf]] <- plt_4s[[curr_perf]] <- list()
+  for(j in 1:length(study_names)){
+    curr_testset <- study_names[j]
+    file_prefix <- sprintf("test%s", curr_testset)
+    res_lst[[curr_perf]][[curr_testset]] <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+    colnames(res_lst[[curr_perf]][[curr_testset]]) <- c("Method", "value", "Model", "Iteration")
+    sumstats <- res_lst[[curr_perf]][[curr_testset]] %>%
+      dplyr::filter(Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")) %>%
+      dplyr::group_by(Method, Model) %>%
+      dplyr::summarise(Avg=mean(value), Up=quantile(value, 0.975), Down=quantile(value, 0.025))
+    sumstats$Type <- rep("Original Data", nrow(sumstats))
+    sumstats$Type[sumstats$Method=="ComBat"] <- "Merging"
+    sumstats$Type[sumstats$Method %in% c("n_Avg","CS_Avg","Reg_s")] <- "Ensemble"
+    sumstats$Type <- factor(sumstats$Type, levels=c("Original Data", "Merging", "Ensemble"))
+    sumstats$Method <- factor(sumstats$Method, levels=c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    sumstats$Method <- plyr::revalue(sumstats$Method, c("Batch"="Original data", "ComBat"="Merge + ComBat",
+                                                        "n_Avg"="Batch size", "CS_Avg"="Cross-study",
+                                                        "Reg_s"="Stacking regression"))
+    sumstats_crossmod <- dplyr::filter(sumstats, Model==MODEL)
+    sumstats_crossmod$Annot <- ""
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Original data"] <- scales::percent(annot_tb[study_label[curr_testset], "Batch"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Merge + ComBat"] <- scales::percent(annot_tb[study_label[curr_testset], "ComBat"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Batch size"] <- scales::percent(annot_tb[study_label[curr_testset], "n_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Cross-study"] <- scales::percent(annot_tb[study_label[curr_testset], "CS_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Stacking regression"] <- scales::percent(annot_tb[study_label[curr_testset], "Reg_s"])
+    plt_4s[[curr_perf]][[curr_testset]] <- ggplot(sumstats_crossmod, aes(x=Method, y=Avg, color=Type)) +
+      geom_errorbar(aes(ymin=Down, ymax=Up), width=.1) +
+      geom_text(aes(label=Annot, y=0.6), color="black", size=3.5) + 
+      geom_line(aes(x=Method, y=Avg, group=1), color="grey") +
+      geom_point() +
+      labs(y=perf_measures_names[perf_measures[i]],
+           title=ifelse(curr_perf=="mxe", paste("Test set:", study_label[curr_testset]), "")) +
+      theme_bw() +
+      theme(axis.title.x=element_blank(),
+            axis.text.x=element_text(angle=30, hjust=1),
+            legend.title=element_blank(),
+            panel.grid.major=element_blank())
+    res_lst[[curr_perf]][[curr_testset]]$Study <- curr_testset
+  }
+}
+#### 6 studies
+results_dir <- "~/Documents/MSBE/TB_realdata_v3_10000gene/"
+study_names <- c("GSE37250_SA", "GSE37250_M", "GSE39941_M", "US", "Africa", "India")
+study_label <- c("F", "G", "C", "E", "A", "D")
+names(study_label) <- study_names
+norm_data <- TRUE 
+use_ref_combat <- FALSE 
+match_preval <- FALSE
+perf_measures <- c("mxe", "auc", "rmse", "f", "err", "acc") 
+perf_measures_names <- c("Mean cross-entropy loss", "AUC", "Root-mean-squared error", 
+                         "F1 score", "Error rate", "Accuracy") 
+names(perf_measures_names) <- perf_measures
+selected_method <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+MODEL <- "crossmod"
+curr_perf <- "mxe"
+freq_lst <- list()
+for(j in 1:length(study_names)){
+  curr_testset <- study_names[j]
+  file_prefix <- sprintf("test%s", curr_testset)
+  res <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+  colnames(res) <- c("Method", "value", "Model", "Iteration")
+  res$Study <- curr_testset
+  total_count <- rep(0, 5)
+  for(b in 1:100){
+    curr_iter <- dplyr::filter(res, Iteration==b, Model=="crossmod", 
+                               Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    total_count[which.min(curr_iter$value)] <- total_count[which.min(curr_iter$value)] + 1 
+  }
+  names(total_count) <- c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")
+  freq_lst[[study_names[j]]] <- total_count / 100
+}
+annot_tb <- do.call(rbind, freq_lst)
+rownames(annot_tb) <- study_label
+plt_6s <- res_lst <- list()
+for(i in 1:length(perf_measures)){
+  curr_perf <- perf_measures[i]
+  res_lst[[curr_perf]] <- plt_6s[[curr_perf]] <- list()
+  for(j in 1:length(study_names)){
+    curr_testset <- study_names[j]
+    file_prefix <- sprintf("test%s", curr_testset)
+    res_lst[[curr_perf]][[curr_testset]] <- read.csv(paste0(results_dir, "/", file_prefix, "_", curr_perf, ".csv"))
+    colnames(res_lst[[curr_perf]][[curr_testset]]) <- c("Method", "value", "Model", "Iteration")
+    sumstats <- res_lst[[curr_perf]][[curr_testset]] %>%
+      dplyr::filter(Method %in% c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s")) %>%
+      dplyr::group_by(Method, Model) %>%
+      dplyr::summarise(Avg=mean(value), Up=quantile(value, 0.975), Down=quantile(value, 0.025))
+    sumstats$Type <- rep("Original Data", nrow(sumstats))
+    sumstats$Type[sumstats$Method=="ComBat"] <- "Merging"
+    sumstats$Type[sumstats$Method %in% c("n_Avg","CS_Avg","Reg_s")] <- "Ensemble"
+    sumstats$Type <- factor(sumstats$Type, levels=c("Original Data", "Merging", "Ensemble"))
+    sumstats$Method <- factor(sumstats$Method, levels=c("Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s"))
+    sumstats$Method <- plyr::revalue(sumstats$Method, c("Batch"="Original data", "ComBat"="Merge + ComBat",
+                                                        "n_Avg"="Batch size", "CS_Avg"="Cross-study",
+                                                        "Reg_s"="Stacking regression"))
+    sumstats_crossmod <- dplyr::filter(sumstats, Model==MODEL)
+    sumstats_crossmod$Annot <- ""
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Original data"] <- scales::percent(annot_tb[study_label[curr_testset], "Batch"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Merge + ComBat"] <- scales::percent(annot_tb[study_label[curr_testset], "ComBat"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Batch size"] <- scales::percent(annot_tb[study_label[curr_testset], "n_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Cross-study"] <- scales::percent(annot_tb[study_label[curr_testset], "CS_Avg"])
+    sumstats_crossmod$Annot[sumstats_crossmod$Method=="Stacking regression"] <- scales::percent(annot_tb[study_label[curr_testset], "Reg_s"])
+    plt_6s[[curr_perf]][[curr_testset]] <- ggplot(sumstats_crossmod, aes(x=Method, y=Avg, color=Type)) +
+      geom_errorbar(aes(ymin=Down, ymax=Up), width=.1) +
+      geom_text(aes(label=Annot, y=1), color="black", size=3.5) + 
+      geom_line(aes(x=Method, y=Avg, group=1), color="grey") +
+      geom_point() +
+      labs(y=perf_measures_names[perf_measures[i]],
+           title=ifelse(curr_perf=="mxe", paste("Test set:", study_label[curr_testset]), "")) +
+      theme_bw() +
+      theme(axis.title.x=element_blank(),
+            axis.text.x=element_text(angle=30, hjust=1),
+            legend.title=element_blank(),
+            panel.grid.major=element_blank())
+    res_lst[[curr_perf]][[curr_testset]]$Study <- curr_testset
+  }
+}
+lgd <- get_legend(plt_4s[["mxe"]][["GSE37250_SA"]])
+plt_4studies <- ggarrange(plt_4s[["mxe"]][["India"]], plt_4s[["mxe"]][["US"]], 
+                          plt_4s[["mxe"]][["GSE37250_SA"]], plt_4s[["mxe"]][["GSE37250_M"]], 
+                          ncol=4, nrow=1, common.legend=TRUE, legend="none")
+plt_4studies <- annotate_figure(plt_4studies, 
+                                top=text_grob("4 studies", face="bold", size=18, hjust=1, x=0.15))
+plt_6studies <- ggarrange(plt_6s[["mxe"]][["India"]], plt_6s[["mxe"]][["US"]], 
+                          plt_6s[["mxe"]][["GSE37250_SA"]], plt_6s[["mxe"]][["GSE37250_M"]], 
+                          plt_6s[["mxe"]][["Africa"]], plt_6s[["mxe"]][["GSE39941_M"]],
+                          ncol=6, nrow=1, common.legend=TRUE, legend="none")
+plt_6studies <- annotate_figure(plt_6studies, 
+                                top=text_grob("6 studies", face="bold", size=18, hjust=1, x=0.1))
+p <- arrangeGrob(plt_4studies, plt_6studies, lgd,                              
+                 ncol=3, nrow=3, layout_matrix=rbind(c(2,2,2), c(NA,NA,NA), c(1,1,3)),
+                 heights=c(1,0.1,1))
+plt_10000gene <- as_ggplot(p)
+plt_10000gene <- annotate_figure(plt_10000gene, top=text_grob("Top 10000 genes", face="bold", size=18, hjust=1, x=0.5))
+
+png("./figures/FigS10.png", width=13, height=22, units="in", res=300)
+ggarrange(plt_10gene, NA, plt_100gene, NA, plt_10000gene, nrow=5, heights=c(1,0.1,1,0.1,1))
+dev.off()
+
+
+
+
 ########  Supplementary Table S3: biomarker difference   ########
 rm(list=ls())
 load("./data/TB_real_data.RData")
@@ -979,7 +1510,7 @@ mean_res
 
 
 
-########  Supplementary figure S10: biomarker difference   ########
+########  Supplementary figure S11: biomarker difference   ########
 plt_hist <- function(curr_dat){
   ggplot(curr_dat, aes(x=Expression, y=..density.., fill=Condition)) +
     geom_histogram(bins=30, alpha=0.3) +
@@ -1016,19 +1547,19 @@ histogram_list <- lapply(study_names, function(s){
 })
 names(histogram_list) <- study_names
 
-png("./figures/FigS10.png", width=10, height=12, units="in", res=300)
+png("./figures/FigS11.png", width=10, height=12, units="in", res=300)
 grid.arrange(histogram_list[["India"]], histogram_list[["US"]],
-          histogram_list[["GSE37250_SA"]], histogram_list[["GSE37250_M"]],
-          histogram_list[["Africa"]], histogram_list[["GSE39941_M"]],
-          lgd, 
-          nrow=4, ncol=2, widths=c(2,2), heights=c(2,2,2,0.5),  
-          layout_matrix=rbind(c(1, 2), c(3, 4), c(5, 6), c(NA, 7)))
+             histogram_list[["GSE37250_SA"]], histogram_list[["GSE37250_M"]],
+             histogram_list[["Africa"]], histogram_list[["GSE39941_M"]],
+             lgd, 
+             nrow=4, ncol=2, widths=c(2,2), heights=c(2,2,2,0.5),  
+             layout_matrix=rbind(c(1, 2), c(3, 4), c(5, 6), c(NA, 7)))
 dev.off()
 
 
 
 
-########  Supplementary figure S11: 4-study mxe and weights (rf only)   ########
+########  Supplementary figure S12: 4-study mxe and weights (rf only)   ########
 rm(list=ls())
 source("./code/helper.R")
 results_dir <- "./results_real_4studies/"
@@ -1123,14 +1654,14 @@ for(STUDY in study_names){
   fig_lst[[STUDY]] <- curr_fig
 }
 
-png("./figures/FigS11.png", width=8, height=13, units="in", res=300)
+png("./figures/FigS12.png", width=8, height=13, units="in", res=300)
 ggarrange(fig_lst[["India"]], fig_lst[["US"]], fig_lst[["GSE37250_SA"]], fig_lst[["GSE37250_M"]], nrow=4, ncol=1)
 dev.off()
 
 
 
 
-########  Supplementary figure S12: 4-study mxe and weights (rf only) - upsampling India ##########
+########  Supplementary figure S13: 4-study mxe and weights (rf only) - upsampling India ##########
 rm(list=ls())
 source("./code/helper.R")
 results_dir <- "~/Documents/MSBE/TB_realdata_v4_upsample"
@@ -1225,7 +1756,7 @@ for(STUDY in study_names){
   fig_lst[[STUDY]] <- curr_fig
 }
 
-png("./figures/FigS12.png", width=8, height=13, units="in", res=300)
+png("./figures/FigS13.png", width=8, height=13, units="in", res=300)
 ggarrange(fig_lst[["India"]], fig_lst[["US"]], 
           fig_lst[["GSE37250_SA"]], fig_lst[["GSE37250_M"]],
           nrow=4, ncol=1)
@@ -1234,7 +1765,7 @@ dev.off()
 
 
 
-########  Supplementary figure S13: 4-study mxe and weights (rf only) - downsampling Africa ##########
+########  Supplementary figure S14: 4-study mxe and weights (rf only) - downsampling Africa ##########
 rm(list=ls())
 source("./code/helper.R")
 results_dir <- "~/Documents/MSBE/TB_realdata_v4_downsample/"
@@ -1332,105 +1863,10 @@ for(STUDY in study_names){
   fig_lst[[STUDY]] <- curr_fig
 }
 
-png("./figures/FigS13.png", width=7, height=15, units="in", res=300)
+png("./figures/FigS14.png", width=7, height=15, units="in", res=300)
 ggarrange(fig_lst[["Africa"]], fig_lst[["GSE39941_M"]], 
           fig_lst[["India"]], fig_lst[["US"]], 
           fig_lst[["GSE37250_SA"]], fig_lst[["GSE37250_M"]], 
           nrow=6, ncol=1)
 dev.off()
-
-
-
-
-########  Supplementary figure S14: merging + ensembling ##########
-rm(list=ls())
-source("./code/helper.R")
-results_dir <- "~/Documents/MSBE/TB_combined/"
-file_lst <- grep(".csv", dir(results_dir), fixed=TRUE, value=TRUE)  # all results files
-method_names <- c("lasso", "rf", "svm")
-method_names_plt <- c("Lasso logistic regression", "Random Forest", "Support Vector Machines")
-names(method_names_plt) <- method_names
-Nbatch <- 3
-N_sample_size <- 20
-batch_mean_vec <- c(0, 5)  
-batch_var_vec <- c(1,3,5)
-perf_measures <- c("mxe", "auc")
-perf_measures_plt <- c("Mean cross-entropy loss", "AUC")
-names(perf_measures_plt) <- perf_measures
-subset_colnames_crossmod <- c("NoBatch", "Batch", "ComBat", "n_Avg", "CS_Avg", "Reg_s", 
-                              "combat_n_Avg", "combat_CS_Avg", "combat_Reg_s") 
-
-curr_perf <- "auc"
-i <- 3
-curr_mod <- "rf"
-batch_levels <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 
-                           1, paste, collapse="_"))
-curr_files_mv_suffix <- sort(apply(expand.grid(paste0("m", batch_mean_vec), paste0("v", batch_var_vec)), 1, paste, collapse="_"))
-curr_file_lst <-  sort(apply(expand.grid(c("crossmod", method_names), 
-                                         paste0(curr_perf, "_batchN", N_sample_size, "_", curr_files_mv_suffix, ".csv")), 1, paste, collapse="_"))
-print(curr_file_lst)
-crossmod_res_lst <- base_lst <- list()
-bl = batch_levels[1]
-for(bl in batch_levels){
-  curr_file_lst_bl <- curr_file_lst[grep(bl, curr_file_lst)]
-  crossmod_res <- read.csv(paste0(results_dir, curr_file_lst_bl[1]), header=TRUE)[, subset_colnames_crossmod[-c(1:3)]]
-  crossmod_res <- melt(crossmod_res)
-  crossmod_type <- rep("Ensemble (across learners)", nrow(crossmod_res))
-  crossmod_type[grep("combat_", crossmod_res$variable)] <- "Combined (across learners)"
-  crossmod_res$Type <- factor(crossmod_type)
-  
-  tmp <- read.csv(paste0(results_dir, curr_file_lst_bl[i]), header=TRUE)[, subset_colnames_crossmod[-1]]
-  colnames(tmp) <- paste(curr_mod, subset_colnames_crossmod[-1], sep=".")
-  tmp <- data.frame(melt(tmp), Type=rep(c("With batch effect, no adjustment", "Merge + ComBat", 
-                                          rep("Ensemble (single learner)",3), rep("Combined (single learner)",3)), 
-                                        each=nrow(tmp)))
-  crossmod_res_lst[[bl]] <- rbind(crossmod_res, tmp)
-  
-  base_lst[[bl]] <- read.csv(paste0(results_dir, curr_file_lst_bl[i]), header=TRUE)[, "NoBatch"]
-}
-plt_df <- melt(crossmod_res_lst)
-plt_df$variable <- factor(plt_df$variable, 
-                          levels=c(paste(curr_mod, subset_colnames_crossmod[-1], sep="."), 
-                                   subset_colnames_crossmod[-c(1:3)]))
-plt_df$Type <- factor(plt_df$Type, levels=c("With batch effect, no adjustment", "Merge + ComBat", 
-                                            "Ensemble (single learner)", "Combined (single learner)", 
-                                            "Ensemble (across learners)", "Combined (across learners)"))
-plt_df$variable <- revalue(plt_df$variable, c("rf.Batch" = "No adjustment (RF only)", 
-                                              "rf.ComBat" = "Merge + ComBat (RF only)",
-                                              "rf.n_Avg" = "Batch size weights (RF only)",  
-                                              "rf.CS_Avg" = "Cross-study weights (RF only)", 
-                                              "rf.Reg_s" = "Regression stacking (RF only)",
-                                              "rf.combat_n_Avg" = "Combined (Batch size weights, RF only)",  
-                                              "rf.combat_CS_Avg" = "Combined (Cross-study weights, RF only)", 
-                                              "rf.combat_Reg_s" = "Combined (Regression stacking, RF only)",
-                                              "n_Avg" = "Batch size weights (across learners)",
-                                              "CS_Avg" = "Cross-study weights (across learners)",
-                                              "Reg_s" = "Regression stacking (across learners)",
-                                              "combat_n_Avg" = "Combined (Batch size weights, across learners)",  
-                                              "combat_CS_Avg" = "Combined (Cross-study weights, across learners)", 
-                                              "combat_Reg_s" = "Combined (Regression stacking, across learners)"))
-plt_df$L1 <- revalue(plt_df$L1, c("m0_v1"="Mean difference 0\nVariance fold change 1", 
-                                  "m0_v3"="Mean difference 0\nVariance fold change 3",
-                                  "m0_v5"="Mean difference 0\nVariance fold change 5",
-                                  "m5_v1"="Mean difference 5\nVariance fold change 1", 
-                                  "m5_v3"="Mean difference 5\nVariance fold change 3",
-                                  "m5_v5"="Mean difference 5\nVariance fold change 5"))
-
-png("./figures/FigS14.png", width=9, height=7, units="in", res=300)
-print(ggplot(plt_df, aes(x=variable, y=value, fill=Type)) +
-        geom_boxplot() +
-        geom_hline(aes(yintercept=median(do.call(c, base_lst)), 
-                       linetype="Average AUC on data\nwithout simulated batch\neffect (RF only)"), color="red") +
-        scale_linetype_manual(name="limit", values=2,
-                              guide=guide_legend(override.aes=list(color=c("red")))) +
-        scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9", "#C77CFF", "dark green", "#F8766D")) +
-        facet_wrap(~L1, ncol=length(batch_var_vec)) +
-        ylim(0.5, max(plt_df$value))+
-        theme(axis.text.x=element_text(angle=30, hjust=1, size=6),
-              axis.title.x=element_blank(),
-              legend.title=element_blank(),
-              legend.position = "right",
-              plot.margin = margin(0.1, 0.1, 0.1, 0.6, "cm")) +
-        labs(y=perf_measures_plt[curr_perf])) 
-dev.off()  
 
